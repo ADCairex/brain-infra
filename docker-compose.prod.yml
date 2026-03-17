@@ -2,7 +2,7 @@ services:
 
   # ─── Traefik ──────────────────────────────────────────────────────────────────
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.6
     restart: unless-stopped
     command:
       - "--providers.docker=true"
@@ -21,8 +21,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - letsencrypt:/letsencrypt
-    environment:
-      - DOCKER_API_VERSION=1.41
     networks:
       - internal
 
