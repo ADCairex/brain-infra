@@ -1,5 +1,29 @@
 services:
 
+  # ─── Traefik ──────────────────────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.0
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - internal
+
   # ─── Database ────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:17
@@ -55,13 +79,11 @@ services:
   brain-api-gateway:
     image: ghcr.io/adcairex/brain-api-gateway:latest
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     environment:
       SECRET_KEY: ${SECRET_KEY}
       SERVICE_AUTH_URL: http://brain-auth-service:8001
       SERVICE_FINANCE_URL: http://brain-finance-service:8002
-      ALLOWED_ORIGINS: http://135.125.53.95:3000
+      ALLOWED_ORIGINS: https://cairex-brain.com
       ENVIRONMENT: production
     depends_on:
       - brain-auth-service
@@ -69,22 +91,28 @@ services:
     networks:
       - internal
     labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.cairex-brain.com`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
       - "com.centurylinklabs.watchtower.enable=true"
 
   # ─── Frontend ─────────────────────────────────────────────────────────────────
   brain-frontend:
     image: ghcr.io/adcairex/brain-frontend:latest
     restart: unless-stopped
-    ports:
-      - "3000:80"
     networks:
       - internal
     labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`cairex-brain.com`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
       - "com.centurylinklabs.watchtower.enable=true"
 
   # ─── Watchtower ───────────────────────────────────────────────────────────────
-  # Comprueba cada 5 minutos si hay imágenes nuevas en GHCR
-  # Solo actualiza contenedores con la label watchtower.enable=true
   watchtower:
     image: containrrr/watchtower
     restart: unless-stopped
@@ -106,3 +134,4 @@ networks:
 
 volumes:
   postgres_data:
+  letsencrypt:
