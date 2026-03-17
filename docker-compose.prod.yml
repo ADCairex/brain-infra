@@ -96,6 +96,7 @@ services:
       WATCHTOWER_CLEANUP: true
       REPO_USER: adcairex
       REPO_PASS: ${GHCR_TOKEN}
+      DOCKER_API_VERSION: "1.41"
     networks:
       - internal
 
