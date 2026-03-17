@@ -1,0 +1,36 @@
+name: Deploy infra
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docker-compose.prod.yml"   # solo se dispara si cambia el compose
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copiar compose al servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "docker-compose.prod.yml"
+          target: "/opt/brain-app"
+
+      - name: Aplicar cambios en el servidor
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/brain-app
+            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u adcairex --password-stdin
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
