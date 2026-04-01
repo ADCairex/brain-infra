@@ -49,6 +49,19 @@ services:
     networks:
       - internal
 
+  # ─── Calendar service ─────────────────────────────────────────────────────────
+  brain-calendar-service:
+    image: ghcr.io/adcairex/brain-calendar-service:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://brain:${POSTGRES_PASSWORD}@postgres:5432/brain?options=-csearch_path%3Dcalendar
+      ENVIRONMENT: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
   # ─── API Gateway ──────────────────────────────────────────────────────────────
   brain-api-gateway:
     image: ghcr.io/adcairex/brain-api-gateway:latest
@@ -59,11 +72,13 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       SERVICE_AUTH_URL: http://brain-auth-service:8001
       SERVICE_FINANCE_URL: http://brain-finance-service:8002
+      SERVICE_CALENDAR_URL: http://brain-calendar-service:8003
       ALLOWED_ORIGINS: http://135.125.53.95:3000
       ENVIRONMENT: development
     depends_on:
       - brain-auth-service
       - brain-finance-service
+      - brain-calendar-service
     networks:
       - internal
 
